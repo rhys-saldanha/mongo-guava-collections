@@ -1,0 +1,5 @@
+de:
+  flap-doodle:
+    mongodb:
+      embedded:
+        version: 7.0.0
