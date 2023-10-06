@@ -47,22 +47,26 @@ public class GuavaCollectionsAutoConfiguration {
                                                final Collection<?> source,
                                                final TypeInformation<?> targetType) {
             if (ImmutableCollection.class.isAssignableFrom(targetType.getType())) {
-                final var immutableCollectionType = targetType.getType();
+                final var immutableCollectionClass = targetType.getType();
 
                 final var componentType = targetType.getComponentType() != null
                         ? targetType.getComponentType()
                         : TypeInformation.OBJECT;
-                final var rawComponentType = componentType.getType();
+                final var rawComponentClass = componentType.getType();
 
-                final var mutableCollectionType = toMutableCollection(immutableCollectionType);
-                final var mutableCollection = (Collection<?>) super.readCollectionOrArray(context, source, TypeInformation.of(ResolvableType.forClassWithGenerics(mutableCollectionType, rawComponentType)));
+                final var mutableCollectionType = toMutableCollectionType(immutableCollectionClass, rawComponentClass);
+                final var mutableCollection = (Collection<?>) super.readCollectionOrArray(context, source, mutableCollectionType);
 
-                return toImmutableCollection(mutableCollection, immutableCollectionType);
+                return toImmutableCollection(mutableCollection, immutableCollectionClass);
             }
             return super.readCollectionOrArray(context, source, targetType);
         }
 
-        private static <E> Class<? extends Collection> toMutableCollection(final Class<?> collectionType) {
+        private static TypeInformation<?> toMutableCollectionType(final Class<?> collectionType, final Class<?> rawComponentClass) {
+            return TypeInformation.of(ResolvableType.forClassWithGenerics(toMutableCollectionClass(collectionType), rawComponentClass));
+        }
+
+        private static Class<? extends Collection> toMutableCollectionClass(final Class<?> collectionType) {
             if (ImmutableList.class == collectionType) {
                 return List.class;
             } else if (ImmutableSet.class == collectionType) {
@@ -74,7 +78,7 @@ public class GuavaCollectionsAutoConfiguration {
             }
         }
 
-        private static <E> ImmutableCollection<?> toImmutableCollection(final Collection<?> mutableCollection, final Class<?> collectionType) {
+        private static ImmutableCollection<?> toImmutableCollection(final Collection<?> mutableCollection, final Class<?> collectionType) {
             Assert.notNull(collectionType, "Collection type must not be null");
             if (ImmutableCollection.class == collectionType || ImmutableList.class == collectionType) {
                 return ImmutableList.copyOf(mutableCollection);
@@ -88,17 +92,15 @@ public class GuavaCollectionsAutoConfiguration {
         @Override
         protected Map<Object, Object> readMap(final ConversionContext context, final Bson bson, final TypeInformation<?> targetType) {
             if (ImmutableMap.class.isAssignableFrom(targetType.getType())) {
-                final var mapType = getTypeMapper().readType(bson, targetType).getType();
-
                 final var keyType = targetType.getComponentType();
                 final var valueType = targetType.getMapValueType() != null
                         ? targetType.getRequiredMapValueType()
                         : TypeInformation.OBJECT;
 
-                final var rawKeyType = keyType != null ? keyType.getType() : Object.class;
-                final var rawValueType = valueType.getType();
+                final var rawKeyClass = keyType != null ? keyType.getType() : Object.class;
+                final var rawValueClass = valueType.getType();
 
-                final var mutableMap = (Map<?, ?>) super.readMap(context, bson, TypeInformation.of(ResolvableType.forClassWithGenerics(Map.class, rawKeyType, rawValueType)));
+                final var mutableMap = (Map<?, ?>) super.readMap(context, bson, TypeInformation.of(ResolvableType.forClassWithGenerics(Map.class, rawKeyClass, rawValueClass)));
 
                 return ImmutableMap.copyOf(mutableMap);
             }
